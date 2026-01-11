@@ -9,9 +9,9 @@ export default function StockDashboard() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'MAIN' | 'GOAL' | 'WATCH' | 'SETTING'>('MAIN');
   const [selectedStock, setSelectedStock] = useState<any>(null);
-  const [exchangeRate, setExchangeRate] = useState(1450); 
+  const [exchangeRate, setExchangeRate] = useState(1457.37); 
   const [isLoaded, setIsLoaded] = useState(false);
-  const [isUpdating, setIsUpdating] = useState(false); // 로딩 상태 표시
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const [stocks, setStocks] = useState([{ ticker: 'AAPL', quantity: 10, avgPrice: 180, sl: 170, tp: 250, color: '#71717a', currentPrice: 0 }]);
   const [totalCashUSD, setTotalCashUSD] = useState(0);
@@ -27,7 +27,6 @@ export default function StockDashboard() {
   const fKRWk = (v: number) => Math.floor(v / 1000).toLocaleString() + 'k';
   const fFullKRW = (v: number) => Math.floor(v).toLocaleString();
 
-  // 🚀 최적화: 사용자가 직접 호출할 때만 실행되도록 개선
   const updateRealTimeData = useCallback(async () => {
     if (isUpdating) return;
     setIsUpdating(true);
@@ -39,7 +38,6 @@ export default function StockDashboard() {
         return price ? { ...s, currentPrice: price } : s;
       }));
       setStocks(updatedStocks);
-
       const updatedWatch = await Promise.all(watchlist.map(async (w) => {
         const res = await fetch(`https://finnhub.io/api/v1/quote?symbol=${w.ticker}&token=${FINNHUB_API_KEY}`);
         const data = await res.json();
@@ -47,7 +45,6 @@ export default function StockDashboard() {
         return price ? { ...w, current: price } : w;
       }));
       setWatchlist(updatedWatch);
-
       const rateRes = await fetch('https://open.er-api.com/v6/latest/USD');
       const rateData = await rateRes.json();
       if (rateData.rates && rateData.rates.KRW) setExchangeRate(rateData.rates.KRW);
@@ -56,7 +53,7 @@ export default function StockDashboard() {
   }, [stocks, watchlist, isUpdating]);
 
   useEffect(() => {
-    const saved = localStorage.getItem('stockApp_realreal_optimized_v4');
+    const saved = localStorage.getItem('stockApp_realreal_compact_v2');
     if (saved) {
       const p = JSON.parse(saved);
       setStocks(p.stocks); setTotalCashUSD(p.cash); setTargetPortfolio(p.goal); setWatchlist(p.watch);
@@ -65,9 +62,7 @@ export default function StockDashboard() {
   }, []);
 
   useEffect(() => {
-    if (isLoaded) {
-      localStorage.setItem('stockApp_realreal_optimized_v4', JSON.stringify({ stocks, cash: totalCashUSD, goal: targetPortfolio, watch: watchlist }));
-    }
+    if (isLoaded) localStorage.setItem('stockApp_realreal_compact_v2', JSON.stringify({ stocks, cash: totalCashUSD, goal: targetPortfolio, watch: watchlist }));
   }, [stocks, totalCashUSD, targetPortfolio, watchlist, isLoaded]);
 
   const processedAssets = useMemo(() => {
@@ -82,46 +77,47 @@ export default function StockDashboard() {
   if (!isLoaded) return null;
 
   return (
-    <div className="max-w-md mx-auto bg-white min-h-screen relative font-sans text-slate-900 pb-20 overflow-hidden">
+    <div className="max-w-md mx-auto bg-white min-h-screen relative font-sans text-slate-900 pb-10 overflow-hidden">
       
+      {/* 1. MAIN 화면 (상단 타이틀 제거 및 공간 압축) */}
       {activeTab === 'MAIN' && (
-        <div className="p-4">
-          <div className="flex justify-between items-center mb-4">
-            <div>
-              <h1 className="font-black text-2xl italic uppercase tracking-tighter">My Assets</h1>
-              <p className="text-[10px] font-bold text-slate-400 uppercase">₩{exchangeRate.toFixed(2)} 
-                <button onClick={updateRealTimeData} className={`ml-2 ${isUpdating ? 'animate-spin' : ''}`}>
-                  <RefreshCw size={12}/>
-                </button>
-              </p>
+        <div className="p-3">
+          {/* 상단바: 총자산 + 캐시수정 + 메뉴 통합 */}
+          <div className="flex justify-between items-center bg-[#0f172a] text-white px-5 py-4 rounded-[28px] shadow-xl mb-4">
+            <div className="flex flex-col">
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Total Balance</span>
+                <button onClick={updateRealTimeData} className={`text-slate-500 ${isUpdating ? 'animate-spin' : ''}`}><RefreshCw size={10}/></button>
+              </div>
+              <h2 className="text-2xl font-black italic tracking-tighter leading-none">₩ {fFullKRW(processedAssets.totalKRW)}</h2>
+              <p className="text-slate-400 font-bold text-[9px] mt-1 tracking-tight">$ {fUSD(processedAssets.totalUSD)} <span className="text-slate-600">| ₩{exchangeRate.toFixed(1)}</span></p>
             </div>
-            <button onClick={() => setIsSidebarOpen(true)} className="p-2 bg-slate-100 rounded-xl"><Menu size={24}/></button>
-          </div>
-
-          <div className="bg-[#0f172a] text-white p-4 rounded-[30px] shadow-2xl mb-6">
-            <h2 className="text-2xl font-black text-center italic mb-3">₩ {fFullKRW(processedAssets.totalKRW)}</h2>
-            <div className="flex justify-between items-center border-t border-white/10 pt-3 px-1">
-              <p className="text-slate-400 font-bold text-[10px]">$ {fUSD(processedAssets.totalUSD)}</p>
-              <button onClick={() => { const val = prompt("보유 현금($)", totalCashUSD.toString()); if(val) setTotalCashUSD(Number(val)); }} className="bg-white text-slate-900 px-3 py-1.5 rounded-full text-[9px] font-black uppercase shadow-lg">Cash 수정</button>
+            <div className="flex flex-col items-end gap-3">
+              <button onClick={() => setIsSidebarOpen(true)} className="p-2 bg-white/10 rounded-xl hover:bg-white/20 active:scale-95 transition-all"><Menu size={20}/></button>
+              <button onClick={() => { const val = prompt("CASH($)", totalCashUSD.toString()); if(val) setTotalCashUSD(Number(val)); }} className="bg-white text-[#0f172a] px-3 py-1.5 rounded-full text-[9px] font-black uppercase shadow-lg active:scale-95 transition-all">CASH 수정</button>
             </div>
           </div>
 
-          <div className="grid grid-cols-6 text-[8px] font-black text-slate-400 border-b pb-2 mb-2 text-center uppercase tracking-tighter"><div>티커</div><div>비중</div><div>자산(k)</div><div>수량</div><div>평단</div><div className="text-right">현재가</div></div>
-          {processedAssets.list.map((s, i) => (
-            <div key={i} onClick={() => s.isStock && setSelectedStock(s)} className="grid grid-cols-6 h-11 items-center italic border-b border-slate-50 text-center">
-              <div className="font-black text-[12px] text-left" style={{ color: s.color }}>{s.ticker}</div>
-              <div className="font-bold text-slate-500 text-[9px]">{s.ratio.toFixed(1)}%</div>
-              <div className="text-slate-900 text-[10px] font-black">{fKRWk(s.totalKRW)}</div>
-              <div className="text-slate-400 text-[9px] font-bold">{s.isStock ? fUSD(s.quantity) : '-'}</div>
-              <div className="text-slate-400 text-[9px] font-bold">{s.isStock ? fUSD(s.avgPrice) : '-'}</div>
-              <div className={`text-right font-black text-[11px] ${s.isStock ? (s.currentPrice >= s.avgPrice ? 'text-red-500' : 'text-blue-500') : 'text-slate-900'}`}>{s.isStock ? (s.currentPrice === 0 ? '...' : fUSD(s.currentPrice)) : '-'}</div>
-            </div>
-          ))}
+          {/* 6열 리스트 (간격 대폭 축소) */}
+          <div className="grid grid-cols-6 text-[8px] font-black text-slate-400 border-b pb-1.5 mb-1.5 text-center uppercase tracking-tighter"><div>티커</div><div>비중</div><div>자산(k)</div><div>수량</div><div>평단</div><div className="text-right">현재가</div></div>
+          <div className="space-y-0.5">
+            {processedAssets.list.map((s, i) => (
+              <div key={i} onClick={() => s.isStock && setSelectedStock(s)} className="grid grid-cols-6 h-9 items-center italic border-b border-slate-50 text-center active:bg-slate-50 transition-colors">
+                <div className="font-black text-[11px] text-left truncate" style={{ color: s.color }}>{s.ticker}</div>
+                <div className="font-bold text-slate-400 text-[9px]">{s.ratio.toFixed(1)}%</div>
+                <div className="text-slate-900 text-[10px] font-black">{fKRWk(s.totalKRW)}</div>
+                <div className="text-slate-400 text-[8px] font-bold">{s.isStock ? fUSD(s.quantity) : '-'}</div>
+                <div className="text-slate-400 text-[8px] font-bold">{s.isStock ? fUSD(s.avgPrice) : '-'}</div>
+                <div className={`text-right font-black text-[10px] ${s.isStock ? (s.currentPrice >= s.avgPrice ? 'text-red-500' : 'text-blue-500') : 'text-slate-900'}`}>{s.isStock ? (s.currentPrice === 0 ? '...' : fUSD(s.currentPrice)) : '-'}</div>
+              </div>
+            ))}
+          </div>
 
+          {/* 원그래프 (가독성 유지) */}
           <div className="h-44 mt-4">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={processedAssets.list} dataKey="ratio" isAnimationActive={false} innerRadius={45} outerRadius={65} paddingAngle={3} label={({ticker, ratio}: any) => `${ticker} ${ratio.toFixed(0)}%`} labelLine={false}>
+                <Pie data={processedAssets.list} dataKey="ratio" isAnimationActive={false} innerRadius={40} outerRadius={60} paddingAngle={2} label={({ticker, ratio}: any) => `${ticker} ${ratio.toFixed(0)}%`} labelLine={false}>
                   {processedAssets.list.map((s, i) => <Cell key={i} fill={s.color} stroke="none" />)}
                 </Pie>
               </PieChart>
@@ -130,96 +126,95 @@ export default function StockDashboard() {
         </div>
       )}
 
-      {/* 2. WATCH (종목 추가/색상 동기화) */}
+      {/* 2. WATCH / 3. GOAL / 4. SETTING (행 간격 축소 및 최적화) */}
       {activeTab === 'WATCH' && (
-        <div className="p-4">
-          <div className="flex justify-between items-center mb-6 mt-2"><h1 className="font-black text-2xl italic tracking-tighter uppercase text-orange-500">Watchlist</h1><button onClick={() => setActiveTab('MAIN')} className="p-2 bg-slate-100 rounded-xl"><X size={24}/></button></div>
-          <div className="grid grid-cols-5 text-[9px] font-black text-slate-400 border-b pb-2 mb-2 text-center uppercase tracking-tighter"><div>색상</div><div>티커</div><div>현재가</div><div>1차</div><div>강력</div></div>
-          {watchlist.map((w, i) => (
-            <div key={i} className="grid grid-cols-5 h-14 items-center border-b border-slate-50 italic text-center">
-              <input type="color" value={w.color} onChange={e => updateTickerColor(w.ticker, e.target.value)} className="w-6 h-6 rounded-full mx-auto border-none cursor-pointer" />
-              <div className="font-black text-[12px]" style={{ color: w.color }}>{w.ticker}</div>
-              <div className="font-black text-[10px] tracking-tighter">${fUSD(w.current)}</div>
-              <input type="number" value={w.part} onChange={e => { const n = [...watchlist]; n[i].part = Number(e.target.value); setWatchlist(n); }} className="w-full bg-slate-50 p-1 rounded font-bold text-center text-[10px] text-orange-500" />
-              <input type="number" value={w.full} onChange={e => { const n = [...watchlist]; n[i].full = Number(e.target.value); setWatchlist(n); }} className="w-full bg-slate-50 p-1 rounded font-bold text-center text-[10px] text-red-500" />
-            </div>
-          ))}
-          <button onClick={() => setWatchlist([...watchlist, { ticker: 'NEW', part: 0, full: 0, current: 0, color: '#000' }])} className="w-full py-4 border-2 border-dashed border-slate-200 rounded-[25px] text-slate-300 flex justify-center mt-4 active:scale-95 transition-all"><Plus/></button>
-        </div>
-      )}
-
-      {/* 3. GOAL (차트 최상단 & 비중 설정) */}
-      {activeTab === 'GOAL' && (
-        <div className="p-4">
-          <div className="flex justify-between items-center mb-2 mt-2"><h1 className="font-black text-2xl italic tracking-tighter uppercase text-blue-600">Goal</h1><button onClick={() => setActiveTab('MAIN')} className="p-2 bg-slate-100 rounded-xl"><X size={24}/></button></div>
-          <div className="h-48 mb-4">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={targetPortfolio} dataKey="ratio" isAnimationActive={false} innerRadius={45} outerRadius={65} paddingAngle={3} label={({ticker, ratio}: any) => `${ticker} ${ratio}%`} labelLine={false}>
-                  {targetPortfolio.map((t, i) => <Cell key={i} fill={stocks.find(s => s.ticker === t.ticker)?.color || (t.ticker === 'CASH' ? '#0f172a' : '#cbd5e1')} stroke="none" />)}
-                </Pie>
-              </PieChart>
-            </ResponsiveContainer>
+        <div className="p-4 animate-in fade-in">
+          <div className="flex justify-between items-center mb-4 mt-1"><h1 className="font-black text-xl italic uppercase text-orange-500">Watchlist</h1><button onClick={() => setActiveTab('MAIN')} className="p-1.5 bg-slate-100 rounded-lg"><X size={20}/></button></div>
+          <div className="grid grid-cols-5 text-[9px] font-black text-slate-400 border-b pb-1.5 mb-1.5 text-center uppercase tracking-tighter"><div>색상</div><div>티커</div><div>현재</div><div>1차</div><div>강력</div></div>
+          <div className="space-y-0.5">
+            {watchlist.map((w, i) => (
+              <div key={i} className="grid grid-cols-5 h-11 items-center border-b border-slate-50 italic text-center">
+                <input type="color" value={w.color} onChange={e => updateTickerColor(w.ticker, e.target.value)} className="w-5 h-5 rounded-full mx-auto border-none cursor-pointer" />
+                <div className="font-black text-[11px]" style={{ color: w.color }}>{w.ticker}</div>
+                <div className="font-black text-[9px] tracking-tighter">${fUSD(w.current)}</div>
+                <input type="number" value={w.part} onChange={e => { const n = [...watchlist]; n[i].part = Number(e.target.value); setWatchlist(n); }} className="w-[85%] bg-slate-50 p-1 rounded font-bold text-center text-[9px] text-orange-500 mx-auto" />
+                <input type="number" value={w.full} onChange={e => { const n = [...watchlist]; n[i].full = Number(e.target.value); setWatchlist(n); }} className="w-[85%] bg-slate-50 p-1 rounded font-bold text-center text-[9px] text-red-500 mx-auto" />
+              </div>
+            ))}
           </div>
-          <div className="grid grid-cols-4 text-[9px] font-black text-slate-400 border-b pb-2 mb-2 text-center uppercase tracking-tighter"><div>색상</div><div>티커</div><div>목표(%)</div><div>금액($)</div></div>
-          {targetPortfolio.map((t, i) => (
-            <div key={i} className="grid grid-cols-4 h-14 items-center border-b border-slate-50 italic text-center">
-              {t.ticker !== 'CASH' ? <input type="color" value={stocks.find(s => s.ticker === t.ticker)?.color || '#e2e8f0'} onChange={e => updateTickerColor(t.ticker, e.target.value)} className="w-6 h-6 rounded-full mx-auto border-none cursor-pointer" /> : <div></div>}
-              <div className="font-black text-[12px]">{t.ticker}</div>
-              <input type="number" value={t.ratio} onChange={e => { const n = [...targetPortfolio]; n[i].ratio = Number(e.target.value); setTargetPortfolio(n); }} className="w-full bg-slate-50 p-1.5 rounded-lg font-black text-center text-[11px]" />
-              <div className="font-black text-[10px] text-slate-900 tracking-tighter">${fUSD((processedAssets.totalUSD * t.ratio) / 100)}</div>
-            </div>
-          ))}
-          <button onClick={() => setTargetPortfolio([...targetPortfolio, { ticker: 'NEW', ratio: 0 }])} className="w-full py-4 border-2 border-dashed border-slate-200 rounded-[25px] text-slate-300 flex justify-center mt-4 active:scale-95 transition-all"><Plus/></button>
+          <button onClick={() => setWatchlist([...watchlist, { ticker: 'NEW', part: 0, full: 0, current: 0, color: '#000' }])} className="w-full py-3 border-2 border-dashed border-slate-100 rounded-[20px] text-slate-200 flex justify-center mt-4 active:scale-95 transition-all"><Plus size={18}/></button>
         </div>
       )}
 
-      {/* 4. SETTING (데이터 관리) */}
+      {activeTab === 'GOAL' && (
+        <div className="p-4 animate-in fade-in">
+          <div className="flex justify-between items-center mb-1 mt-1"><h1 className="font-black text-xl italic uppercase text-blue-600">Goal</h1><button onClick={() => setActiveTab('MAIN')} className="p-1.5 bg-slate-100 rounded-lg"><X size={20}/></button></div>
+          <div className="h-44 mb-4 transition-all"><ResponsiveContainer width="100%" height="100%"><PieChart>
+            <Pie data={targetPortfolio} dataKey="ratio" isAnimationActive={false} innerRadius={40} outerRadius={60} paddingAngle={2} label={({ticker, ratio}: any) => `${ticker} ${ratio}%`} labelLine={false}>
+              {targetPortfolio.map((t, i) => <Cell key={i} fill={stocks.find(s => s.ticker === t.ticker)?.color || (t.ticker === 'CASH' ? '#0f172a' : '#cbd5e1')} stroke="none" />)}
+            </Pie></PieChart></ResponsiveContainer>
+          </div>
+          <div className="grid grid-cols-4 text-[9px] font-black text-slate-400 border-b pb-1.5 mb-1.5 text-center uppercase tracking-tighter"><div>색상</div><div>티커</div><div>목표(%)</div><div>금액($)</div></div>
+          <div className="space-y-0.5">
+            {targetPortfolio.map((t, i) => (
+              <div key={i} className="grid grid-cols-4 h-11 items-center border-b border-slate-50 italic text-center">
+                {t.ticker !== 'CASH' ? <input type="color" value={stocks.find(s => s.ticker === t.ticker)?.color || '#e2e8f0'} onChange={e => updateTickerColor(t.ticker, e.target.value)} className="w-5 h-5 rounded-full mx-auto border-none cursor-pointer" /> : <div></div>}
+                <div className="font-black text-[11px] truncate">{t.ticker}</div>
+                <input type="number" value={t.ratio} onChange={e => { const n = [...targetPortfolio]; n[i].ratio = Number(e.target.value); setTargetPortfolio(n); }} className="w-[85%] bg-slate-50 p-1 rounded-lg font-black text-center text-[10px] mx-auto" />
+                <div className="font-black text-[9px] text-slate-900 tracking-tighter">${fUSD((processedAssets.totalUSD * t.ratio) / 100)}</div>
+              </div>
+            ))}
+          </div>
+          <button onClick={() => setTargetPortfolio([...targetPortfolio, { ticker: 'NEW', ratio: 0 }])} className="w-full py-3 border-2 border-dashed border-slate-100 rounded-[20px] text-slate-200 flex justify-center mt-4 active:scale-95 transition-all"><Plus size={18}/></button>
+        </div>
+      )}
+
       {activeTab === 'SETTING' && (
-        <div className="p-4 pb-32">
-          <div className="flex justify-between items-center mb-6 mt-2"><h1 className="font-black text-2xl italic tracking-tighter uppercase text-slate-900">Setting</h1><button onClick={() => setActiveTab('MAIN')} className="p-2 bg-slate-100 rounded-xl"><X size={24}/></button></div>
-          <div className="grid grid-cols-7 text-[7px] font-black text-slate-400 border-b pb-2 mb-2 text-center uppercase tracking-tighter"><div>색상</div><div>티커</div><div>수량</div><div>평단</div><div>손절</div><div>익절</div><div></div></div>
-          {stocks.map((s, i) => (
-            <div key={i} className="grid grid-cols-7 gap-1 items-center bg-slate-50 p-2 rounded-2xl mb-2 italic">
-              <input type="color" value={s.color} onChange={e => updateTickerColor(s.ticker, e.target.value)} className="w-5 h-5 rounded mx-auto border-none cursor-pointer" />
-              <input value={s.ticker} onChange={e => { const n = [...stocks]; n[i].ticker = e.target.value.toUpperCase(); setStocks(n); }} className="text-[10px] font-black w-full text-center bg-transparent outline-none uppercase" />
-              <input type="number" value={s.quantity} onChange={e => { const n = [...stocks]; n[i].quantity = Number(e.target.value); setStocks(n); }} className="text-[9px] w-full text-center bg-white p-1 rounded font-bold" />
-              <input type="number" value={s.avgPrice} onChange={e => { const n = [...stocks]; n[i].avgPrice = Number(e.target.value); setStocks(n); }} className="text-[9px] w-full text-center bg-white p-1 rounded font-bold" />
-              <input type="number" value={s.sl} onChange={e => { const n = [...stocks]; n[i].sl = Number(e.target.value); setStocks(n); }} className="text-[9px] w-full text-center bg-red-100 text-red-600 p-1 rounded font-bold" />
-              <input type="number" value={s.tp} onChange={e => { const n = [...stocks]; n[i].tp = Number(e.target.value); setStocks(n); }} className="text-[9px] w-full text-center bg-blue-100 text-blue-700 p-1 rounded font-bold" />
-              <button onClick={() => setStocks(stocks.filter((_, idx) => idx !== i))} className="text-slate-300 mx-auto active:text-red-500"><Trash2 size={12}/></button>
-            </div>
-          ))}
-          <button onClick={() => setStocks([...stocks, { ticker: 'NEW', quantity: 0, avgPrice: 0, currentPrice: 0, sl: 0, tp: 0, color: '#000' }])} className="w-full py-4 border-2 border-dashed border-slate-200 rounded-[25px] text-slate-300 flex justify-center mt-2 active:scale-95 transition-all"><Plus/></button>
+        <div className="p-4 animate-in fade-in pb-32">
+          <div className="flex justify-between items-center mb-5 mt-1"><h1 className="font-black text-xl italic uppercase text-slate-900">Setting</h1><button onClick={() => setActiveTab('MAIN')} className="p-1.5 bg-slate-100 rounded-lg"><X size={20}/></button></div>
+          <div className="grid grid-cols-7 text-[7px] font-black text-slate-400 border-b pb-1.5 mb-1.5 text-center uppercase tracking-tighter"><div>색상</div><div>티커</div><div>수량</div><div>평단</div><div>손절</div><div>익절</div><div></div></div>
+          <div className="space-y-1">
+            {stocks.map((s, i) => (
+              <div key={i} className="grid grid-cols-7 gap-1 items-center bg-slate-50 p-2 rounded-xl italic">
+                <input type="color" value={s.color} onChange={e => updateTickerColor(s.ticker, e.target.value)} className="w-4 h-4 rounded mx-auto border-none cursor-pointer" />
+                <input value={s.ticker} onChange={e => { const n = [...stocks]; n[i].ticker = e.target.value.toUpperCase(); setStocks(n); }} className="text-[10px] font-black w-full text-center bg-transparent outline-none uppercase" />
+                <input type="number" value={s.quantity} onChange={e => { const n = [...stocks]; n[i].quantity = Number(e.target.value); setStocks(n); }} className="text-[9px] w-full text-center bg-white p-0.5 rounded font-bold" />
+                <input type="number" value={s.avgPrice} onChange={e => { const n = [...stocks]; n[i].avgPrice = Number(e.target.value); setStocks(n); }} className="text-[9px] w-full text-center bg-white p-0.5 rounded font-bold" />
+                <input type="number" value={s.sl} onChange={e => { const n = [...stocks]; n[i].sl = Number(e.target.value); setStocks(n); }} className="text-[9px] w-full text-center bg-red-50 text-red-600 p-0.5 rounded font-bold" />
+                <input type="number" value={s.tp} onChange={e => { const n = [...stocks]; n[i].tp = Number(e.target.value); setStocks(n); }} className="text-[9px] w-full text-center bg-blue-50 text-blue-700 p-0.5 rounded font-bold" />
+                <button onClick={() => setStocks(stocks.filter((_, idx) => idx !== i))} className="text-slate-300 mx-auto active:text-red-500"><Trash2 size={12}/></button>
+              </div>
+            ))}
+          </div>
+          <button onClick={() => setStocks([...stocks, { ticker: 'NEW', quantity: 0, avgPrice: 0, currentPrice: 0, sl: 0, tp: 0, color: '#000' }])} className="w-full py-3 border-2 border-dashed border-slate-100 rounded-[20px] text-slate-200 flex justify-center mt-4 active:scale-95 transition-all"><Plus size={18}/></button>
         </div>
       )}
 
-      {/* 사이드바 메뉴 */}
+      {/* 사이드바 메뉴 및 상세 팝업 (동일) */}
       {isSidebarOpen && activeTab === 'MAIN' && (
         <div className="fixed inset-0 z-[60] flex animate-in fade-in duration-300">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={() => setIsSidebarOpen(false)} />
-          <div className="relative w-[85%] bg-white flex flex-col h-full ml-auto animate-in slide-in-from-right duration-300 shadow-2xl">
-            <div className="p-10 flex justify-between items-center border-b font-black text-2xl italic uppercase mt-4">Menu <button onClick={() => setIsSidebarOpen(false)} className="p-2 bg-slate-100 rounded-xl"><X size={32}/></button></div>
-            <div className="p-8 space-y-6">
-              <button onClick={() => {setActiveTab('GOAL'); setIsSidebarOpen(false);}} className="w-full p-8 bg-blue-600 text-white rounded-[40px] font-black text-left flex justify-between items-center shadow-xl text-lg uppercase active:scale-95">Goal <ChevronRight/></button>
-              <button onClick={() => {setActiveTab('WATCH'); setIsSidebarOpen(false);}} className="w-full p-8 bg-orange-500 text-white rounded-[40px] font-black text-left flex justify-between items-center shadow-xl text-lg uppercase active:scale-95">Watchlist <ChevronRight/></button>
-              <button onClick={() => {setActiveTab('SETTING'); setIsSidebarOpen(false);}} className="w-full p-8 bg-slate-900 text-white rounded-[40px] font-black text-left flex justify-between items-center shadow-xl text-lg uppercase active:scale-95">Setting <ChevronRight/></button>
+          <div className="relative w-[80%] bg-white flex flex-col h-full ml-auto shadow-2xl">
+            <div className="p-8 flex justify-between items-center border-b font-black text-xl italic uppercase mt-4 tracking-widest">Menu <button onClick={() => setIsSidebarOpen(false)} className="p-1.5 bg-slate-100 rounded-lg"><X size={28}/></button></div>
+            <div className="p-6 space-y-4">
+              <button onClick={() => {setActiveTab('GOAL'); setIsSidebarOpen(false);}} className="w-full p-6 bg-blue-600 text-white rounded-[32px] font-black text-left flex justify-between items-center shadow-lg text-base uppercase tracking-tighter active:scale-95 transition-all">Goal <ChevronRight/></button>
+              <button onClick={() => {setActiveTab('WATCH'); setIsSidebarOpen(false);}} className="w-full p-6 bg-orange-500 text-white rounded-[32px] font-black text-left flex justify-between items-center shadow-lg text-base uppercase tracking-tighter active:scale-95 transition-all">Watchlist <ChevronRight/></button>
+              <button onClick={() => {setActiveTab('SETTING'); setIsSidebarOpen(false);}} className="w-full p-6 bg-slate-900 text-white rounded-[32px] font-black text-left flex justify-between items-center shadow-lg text-base uppercase tracking-tighter active:scale-95 transition-all">Setting <ChevronRight/></button>
             </div>
           </div>
         </div>
       )}
 
-      {/* SL/TP 상세 팝업 */}
       {selectedStock && (
         <div className="fixed inset-0 z-[100] flex items-end animate-in fade-in">
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setSelectedStock(null)} />
-          <div className="relative w-full bg-white rounded-t-[60px] p-12 animate-in slide-in-from-bottom duration-500 shadow-2xl">
-            <h3 className="text-4xl font-black mb-10 italic uppercase tracking-tighter" style={{ color: selectedStock.color }}>{selectedStock.ticker}</h3>
-            <div className="grid grid-cols-2 gap-8 mb-12">
-              <div className="p-8 bg-blue-50 rounded-[45px] border border-blue-100 text-center shadow-inner"><p className="text-[11px] font-black mb-2 uppercase text-blue-400 tracking-widest">Target (TP)</p><p className="text-3xl font-black text-blue-700">${fUSD(selectedStock.tp)}</p></div>
-              <div className="p-8 bg-red-50 rounded-[45px] border border-red-100 text-center shadow-inner"><p className="text-[11px] font-black mb-2 uppercase text-red-400 tracking-widest">Loss (SL)</p><p className="text-3xl font-black text-red-700">${fUSD(selectedStock.sl)}</p></div>
+          <div className="relative w-full bg-white rounded-t-[50px] p-10 animate-in slide-in-from-bottom duration-500 shadow-2xl">
+            <h3 className="text-3xl font-black mb-8 italic uppercase tracking-tighter" style={{ color: selectedStock.color }}>{selectedStock.ticker}</h3>
+            <div className="grid grid-cols-2 gap-6 mb-10">
+              <div className="p-6 bg-blue-50 rounded-[35px] border border-blue-100 text-center shadow-inner"><p className="text-[10px] font-black mb-1 uppercase text-blue-400 tracking-widest leading-none">Target (TP)</p><p className="text-2xl font-black text-blue-700 leading-none mt-1">${fUSD(selectedStock.tp)}</p></div>
+              <div className="p-6 bg-red-50 rounded-[35px] border border-red-100 text-center shadow-inner"><p className="text-[10px] font-black mb-1 uppercase text-red-400 tracking-widest leading-none">Loss (SL)</p><p className="text-2xl font-black text-red-700 leading-none mt-1">${fUSD(selectedStock.sl)}</p></div>
             </div>
-            <button onClick={() => setSelectedStock(null)} className="w-full py-6 bg-slate-900 text-white rounded-[35px] font-black text-xl shadow-2xl uppercase">Done</button>
+            <button onClick={() => setSelectedStock(null)} className="w-full py-5 bg-slate-900 text-white rounded-[30px] font-black text-lg shadow-xl uppercase active:scale-95 transition-all">Done</button>
           </div>
         </div>
       )}
