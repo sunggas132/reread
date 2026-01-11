@@ -131,24 +131,28 @@ export default function StockDashboard() {
               <input type="number" value={w.full} onChange={e => { const n = [...watchlist]; n[i].full = Number(e.target.value); setWatchlist(n); }} className="w-[85%] bg-slate-50 p-1 rounded font-bold text-center text-[9px] text-red-500 mx-auto" />
             </div>
           ))}
-          <button onClick={() => setWatchlist([...watchlist, { ticker: 'NEW', part: 0, full: 0, current: 0, color: '#000' }])} className="w-full py-3 border-2 border-dashed border-slate-100 rounded-[20px] text-slate-200 flex justify-center mt-4"><Plus size={18}/></button>
+          <button onClick={() => setWatchlist([...watchlist, { ticker: 'NEW', part: 0, full: 0, current: 0, color: '#000' }])} className="w-full py-3 border-2 border-dashed border-slate-200 rounded-[20px] text-slate-200 flex justify-center mt-4 transition-all active:scale-95"><Plus size={18}/></button>
         </div>
       )}
 
       {activeTab === 'GOAL' && (
         <div className="p-4 animate-in fade-in">
           <div className="flex justify-between items-center mb-1 mt-1"><h1 className="font-black text-xl italic uppercase text-blue-600">Goal</h1><button onClick={() => setActiveTab('MAIN')} className="p-1.5 bg-slate-100 rounded-lg"><X size={20}/></button></div>
-          <div className="h-44 mb-4"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={targetPortfolio} dataKey="ratio" isAnimationActive={false} innerRadius={40} outerRadius={60} paddingAngle={2} label={({ticker, ratio}: any) => `${ticker} ${ratio}%`} labelLine={false}>{targetPortfolio.map((t, i) => <Cell key={i} fill={stocks.find(s => s.ticker === t.ticker)?.color || (t.ticker === 'CASH' ? '#0f172a' : '#cbd5e1')} stroke="none" />)}</Pie></PieChart></ResponsiveContainer></div>
+          <div className="h-44 mb-4 transition-all"><ResponsiveContainer width="100%" height="100%"><PieChart>
+            <Pie data={targetPortfolio} dataKey="ratio" isAnimationActive={false} innerRadius={40} outerRadius={60} paddingAngle={2} label={({ticker, ratio}: any) => `${ticker} ${ratio}%`} labelLine={false}>
+              {targetPortfolio.map((t, i) => <Cell key={i} fill={stocks.find(s => s.ticker === t.ticker)?.color || (t.ticker === 'CASH' ? '#0f172a' : '#cbd5e1')} stroke="none" />)}
+            </Pie></PieChart></ResponsiveContainer>
+          </div>
           <div className="grid grid-cols-4 text-[9px] font-black text-slate-400 border-b pb-1.5 mb-1.5 text-center uppercase tracking-tighter"><div>색상</div><div>티커</div><div>목표(%)</div><div>금액($)</div></div>
           {targetPortfolio.map((t, i) => (
-            <div key={i} className="grid grid-cols-4 h-11 items-center border-b border-slate-50 italic text-center">
+            <div key={i} className="grid grid-cols-4 h-11 items-center border-b border-slate-50 italic text-center text-[10px]">
               {t.ticker !== 'CASH' ? <input type="color" value={stocks.find(s => s.ticker === t.ticker)?.color || '#e2e8f0'} onChange={e => updateTickerColor(t.ticker, e.target.value)} className="w-5 h-5 rounded-full mx-auto border-none cursor-pointer" /> : <div></div>}
-              <div className="font-black text-[11px] truncate">{t.ticker}</div>
-              <input type="number" value={t.ratio} onChange={e => { const n = [...targetPortfolio]; n[i].ratio = Number(e.target.value); setTargetPortfolio(n); }} className="w-[85%] bg-slate-50 p-1 rounded-lg font-black text-center text-[10px] mx-auto" />
-              <div className="font-black text-[9px] text-slate-900 tracking-tighter">${fUSD((processedAssets.totalUSD * t.ratio) / 100)}</div>
+              <div className="font-black truncate">{t.ticker}</div>
+              <input type="number" value={t.ratio} onChange={e => { const n = [...targetPortfolio]; n[i].ratio = Number(e.target.value); setTargetPortfolio(n); }} className="w-[85%] bg-slate-50 p-1 rounded-lg font-black text-center mx-auto" />
+              <div className="font-black text-slate-900 tracking-tighter">${fUSD((processedAssets.totalUSD * t.ratio) / 100)}</div>
             </div>
           ))}
-          <button onClick={() => setTargetPortfolio([...targetPortfolio, { ticker: 'NEW', ratio: 0 }])} className="w-full py-3 border-2 border-dashed border-slate-100 rounded-[20px] text-slate-200 flex justify-center mt-4"><Plus size={18}/></button>
+          <button onClick={() => setTargetPortfolio([...targetPortfolio, { ticker: 'NEW', ratio: 0 }])} className="w-full py-3 border-2 border-dashed border-slate-200 rounded-[20px] text-slate-200 flex justify-center mt-4 transition-all active:scale-95"><Plus size={18}/></button>
         </div>
       )}
 
@@ -157,17 +161,17 @@ export default function StockDashboard() {
           <div className="flex justify-between items-center mb-5 mt-1"><h1 className="font-black text-xl italic uppercase text-slate-900">Setting</h1><button onClick={() => setActiveTab('MAIN')} className="p-1.5 bg-slate-100 rounded-lg"><X size={20}/></button></div>
           <div className="grid grid-cols-7 text-[7px] font-black text-slate-400 border-b pb-1.5 mb-1.5 text-center uppercase tracking-tighter"><div>색상</div><div>티커</div><div>수량</div><div>평단</div><div>손절</div><div>익절</div><div></div></div>
           {stocks.map((s, i) => (
-            <div key={i} className="grid grid-cols-7 gap-1 items-center bg-slate-50 p-2 rounded-xl italic">
-              <input type="color" value={s.color} onChange={e => updateTickerColor(s.ticker, e.target.value)} className="w-4 h-4 rounded mx-auto border-none cursor-pointer" />
+            <div key={i} className="grid grid-cols-7 gap-1 items-center bg-slate-50 p-2 rounded-xl italic mb-2 transition-all">
+              <input type="color" value={s.color} onChange={e => updateTickerColor(s.ticker, e.target.value)} className="w-4 h-4 rounded mx-auto border-none cursor-pointer shadow-sm" />
               <input value={s.ticker} onChange={e => { const n = [...stocks]; n[i].ticker = e.target.value.toUpperCase(); setStocks(n); }} className="text-[10px] font-black w-full text-center bg-transparent outline-none uppercase" />
-              <input type="number" value={s.quantity} onChange={e => { const n = [...stocks]; n[i].quantity = Number(e.target.value); setStocks(n); }} className="text-[9px] w-full text-center bg-white p-0.5 rounded font-bold" />
-              <input type="number" value={s.avgPrice} onChange={e => { const n = [...stocks]; n[i].avgPrice = Number(e.target.value); setStocks(n); }} className="text-[9px] w-full text-center bg-white p-0.5 rounded font-bold" />
-              <input type="number" value={s.sl} onChange={e => { const n = [...stocks]; n[i].sl = Number(e.target.value); setStocks(n); }} className="text-[9px] w-full text-center bg-red-50 text-red-600 p-0.5 rounded font-bold" />
-              <input type="number" value={s.tp} onChange={e => { const n = [...stocks]; n[i].tp = Number(e.target.value); setStocks(n); }} className="text-[9px] w-full text-center bg-blue-50 text-blue-700 p-0.5 rounded font-bold" />
+              <input type="number" value={s.quantity} onChange={e => { const n = [...stocks]; n[i].quantity = Number(e.target.value); setStocks(n); }} className="text-[9px] w-full text-center bg-white p-0.5 rounded font-bold shadow-sm" />
+              <input type="number" value={s.avgPrice} onChange={e => { const n = [...stocks]; n[i].avgPrice = Number(e.target.value); setStocks(n); }} className="text-[9px] w-full text-center bg-white p-0.5 rounded font-bold shadow-sm" />
+              <input type="number" value={s.sl} onChange={e => { const n = [...stocks]; n[i].sl = Number(e.target.value); setStocks(n); }} className="text-[9px] w-full text-center bg-red-50 text-red-600 p-0.5 rounded font-bold shadow-sm" />
+              <input type="number" value={s.tp} onChange={e => { const n = [...stocks]; n[i].tp = Number(e.target.value); setStocks(n); }} className="text-[9px] w-full text-center bg-blue-50 text-blue-700 p-0.5 rounded font-bold shadow-sm" />
               <button onClick={() => setStocks(stocks.filter((_, idx) => idx !== i))} className="text-slate-300 mx-auto active:text-red-500"><Trash2 size={12}/></button>
             </div>
           ))}
-          <button onClick={() => setStocks([...stocks, { ticker: 'NEW', quantity: 0, avgPrice: 0, currentPrice: 0, sl: 0, tp: 0, color: '#000' }])} className="w-full py-3 border-2 border-dashed border-slate-100 rounded-[20px] text-slate-200 flex justify-center mt-4"><Plus size={18}/></button>
+          <button onClick={() => setStocks([...stocks, { ticker: 'NEW', quantity: 0, avgPrice: 0, currentPrice: 0, sl: 0, tp: 0, color: '#000' }])} className="w-full py-3 border-2 border-dashed border-slate-100 rounded-[20px] text-slate-200 flex justify-center mt-4 transition-all active:scale-95"><Plus size={18}/></button>
         </div>
       )}
 
@@ -175,18 +179,18 @@ export default function StockDashboard() {
         <div className="fixed inset-0 z-[60] flex animate-in fade-in duration-300">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={() => setIsSidebarOpen(false)} />
           <div className="relative w-[80%] bg-white flex flex-col h-full ml-auto shadow-2xl">
-            <div className="p-8 flex justify-between items-center border-b font-black text-xl italic uppercase mt-4 tracking-widest text-slate-900">Menu <button onClick={() => setIsSidebarOpen(false)} className="p-1.5 bg-slate-100 rounded-lg"><X size={28}/></button></div>
+            <div className="p-8 flex justify-between items-center border-b font-black text-xl italic uppercase mt-4 tracking-widest text-slate-900 leading-none">Menu <button onClick={() => setIsSidebarOpen(false)} className="p-1.5 bg-slate-100 rounded-lg"><X size={28}/></button></div>
             <div className="p-6 space-y-4">
-              <button onClick={() => {setActiveTab('GOAL'); setIsSidebarOpen(false);}} className="w-full p-6 bg-blue-600 text-white rounded-[32px] font-black text-left flex justify-between items-center shadow-lg text-base uppercase active:scale-95 transition-all">Goal <ChevronRight/></button>
-              <button onClick={() => {setActiveTab('WATCH'); setIsSidebarOpen(false);}} className="w-full p-6 bg-orange-500 text-white rounded-[32px] font-black text-left flex justify-between items-center shadow-lg text-base uppercase active:scale-95 transition-all">Watchlist <ChevronRight/></button>
-              <button onClick={() => {setActiveTab('SETTING'); setIsSidebarOpen(false);}} className="w-full p-6 bg-slate-900 text-white rounded-[32px] font-black text-left flex justify-between items-center shadow-lg text-base uppercase active:scale-95 transition-all">Setting <ChevronRight/></button>
+              <button onClick={() => {setActiveTab('GOAL'); setIsSidebarOpen(false);}} className="w-full p-6 bg-blue-600 text-white rounded-[32px] font-black text-left flex justify-between items-center shadow-lg text-base uppercase tracking-tighter active:scale-95 transition-all">Goal <ChevronRight/></button>
+              <button onClick={() => {setActiveTab('WATCH'); setIsSidebarOpen(false);}} className="w-full p-6 bg-orange-500 text-white rounded-[32px] font-black text-left flex justify-between items-center shadow-lg text-base uppercase tracking-tighter active:scale-95 transition-all">Watchlist <ChevronRight/></button>
+              <button onClick={() => {setActiveTab('SETTING'); setIsSidebarOpen(false);}} className="w-full p-6 bg-slate-900 text-white rounded-[32px] font-black text-left flex justify-between items-center shadow-lg text-base uppercase tracking-tighter active:scale-95 transition-all">Setting <ChevronRight/></button>
             </div>
           </div>
         </div>
       )}
 
       {selectedStock && (
-        <div className="fixed inset-0 z-[100] flex items-end animate-in fade-in">
+        <div className="fixed inset-0 z-[100] flex items-end animate-in fade-in duration-500">
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setSelectedStock(null)} />
           <div className="relative w-full bg-white rounded-t-[50px] p-10 animate-in slide-in-from-bottom duration-500 shadow-2xl">
             <h3 className="text-3xl font-black mb-8 italic uppercase tracking-tighter" style={{ color: selectedStock.color }}>{selectedStock.ticker}</h3>
