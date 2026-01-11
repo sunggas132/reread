@@ -18,57 +18,58 @@ export default function StockDashboard() {
   const [targetPortfolio, setTargetPortfolio] = useState([{ ticker: 'AAPL', ratio: 50 }, { ticker: 'CASH', ratio: 50 }]);
   const [watchlist, setWatchlist] = useState([{ ticker: 'NVDA', part: 450, full: 400, current: 0, color: '#16a34a' }]);
 
+  const updateTickerColor = (ticker: string, newColor: string) => {
+    setStocks(prev => prev.map(s => s.ticker === ticker ? { ...s, color: newColor } : s));
+    setWatchlist(prev => prev.map(w => w.ticker === ticker ? { ...w, color: newColor } : w));
+  };
+
   const fUSD = (v: number) => (Math.floor(v * 100) / 100).toFixed(2);
   const fKRWk = (v: number) => Math.floor(v / 1000).toLocaleString() + 'k';
   const fFullKRW = (v: number) => Math.floor(v).toLocaleString();
 
-  // 🚀 [백그라운드 전용] 앱 시작 시 종가(pc)를 조용히 업데이트하는 함수 [cite: 2026-01-11]
-  const updateBackgroundPrices = useCallback(async (currentStocks: any[]) => {
-    try {
-      const updated = await Promise.all(currentStocks.map(async (s) => {
+  const fetchInitialPrices = useCallback(async (currentStocks: any[]) => {
+    const updated = await Promise.all(currentStocks.map(async (s) => {
+      try {
         const res = await fetch(`https://finnhub.io/api/v1/quote?symbol=${s.ticker}&token=${FINNHUB_API_KEY}`);
         const data = await res.json();
-        // 종가(pc)가 있으면 그걸 쓰고, 없으면 평단가라도 넣어서 '...' 방지 [cite: 2026-01-11]
-        return { ...s, currentPrice: data.pc || s.avgPrice };
-      }));
-      setStocks(updated);
-    } catch (e) { console.error("Background Update Error:", e); }
+        const price = data.c || data.pc || s.avgPrice; 
+        return { ...s, currentPrice: price };
+      } catch (e) { return { ...s, currentPrice: s.avgPrice }; }
+    }));
+    setStocks(updated);
   }, []);
 
-  // 🛠️ [실시간 전용] 버튼 눌렀을 때만 1초 간격으로 현재가(c) 정밀 업데이트 [cite: 2026-01-11]
   const updateRealTimeData = useCallback(async () => {
     if (isUpdating) return;
     setIsUpdating(true);
-    try {
-      const newStocks = [...stocks];
-      for (let i = 0; i < newStocks.length; i++) {
+    const newStocks = [...stocks];
+    for (let i = 0; i < newStocks.length; i++) {
+      try {
         const res = await fetch(`https://finnhub.io/api/v1/quote?symbol=${newStocks[i].ticker}&token=${FINNHUB_API_KEY}`);
         const data = await res.json();
-        const price = data.c !== 0 ? data.c : data.pc;
-        if (price) newStocks[i] = { ...newStocks[i], currentPrice: price };
-        setStocks([...newStocks]); // 한 종목씩 실시간으로 숫자가 바뀌는 걸 보여줌
-        await new Promise(r => setTimeout(r, 1100)); // API 차단 방지 [cite: 2026-01-11]
-      }
-      // 환율도 함께 업데이트
-      const rateRes = await fetch('https://open.er-api.com/v6/latest/USD');
-      const rateData = await rateRes.json();
-      if (rateData.rates?.KRW) setExchangeRate(rateData.rates.KRW);
-    } catch (e) { console.error(e); }
+        const price = data.c || data.pc; 
+        if (price) {
+          newStocks[i] = { ...newStocks[i], currentPrice: price };
+          setStocks([...newStocks]);
+        }
+        await new Promise(r => setTimeout(r, 1100)); 
+      } catch (e) { console.error(e); }
+    }
     setIsUpdating(false);
   }, [stocks, isUpdating]);
 
   useEffect(() => {
-    const saved = localStorage.getItem('stockApp_real_final_v5');
+    const saved = localStorage.getItem('stockApp_vFinal_Fixed_Layout');
     if (saved) {
       const p = JSON.parse(saved);
       setStocks(p.stocks); setTotalCashUSD(p.cash); setTargetPortfolio(p.goal); setWatchlist(p.watch);
-      updateBackgroundPrices(p.stocks); // 🏠 앱 켜지자마자 백그라운드 업데이트 시작 [cite: 2026-01-11]
+      fetchInitialPrices(p.stocks);
     }
     setIsLoaded(true);
-  }, [updateBackgroundPrices]);
+  }, [fetchInitialPrices]);
 
   useEffect(() => {
-    if (isLoaded) localStorage.setItem('stockApp_real_final_v5', JSON.stringify({ stocks, cash: totalCashUSD, goal: targetPortfolio, watch: watchlist }));
+    if (isLoaded) localStorage.setItem('stockApp_vFinal_Fixed_Layout', JSON.stringify({ stocks, cash: totalCashUSD, goal: targetPortfolio, watch: watchlist }));
   }, [stocks, totalCashUSD, targetPortfolio, watchlist, isLoaded]);
 
   const processedAssets = useMemo(() => {
@@ -86,51 +87,117 @@ export default function StockDashboard() {
     <div className="max-w-md mx-auto bg-white min-h-screen relative font-sans text-slate-900 pb-10 overflow-hidden">
       {activeTab === 'MAIN' && (
         <div className="p-3">
-          {/* 상단바: 'My Assets' 대신 콤팩트한 통합 바 [cite: 2026-01-11] */}
           <div className="flex justify-between items-center bg-[#0f172a] text-white px-5 py-4 rounded-[28px] shadow-xl mb-3">
             <div className="flex flex-col">
               <div className="flex items-center gap-2 mb-0.5">
-                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest text-white/30">Total Assets</span>
-                <button onClick={updateRealTimeData} className={`text-slate-400 ${isUpdating ? 'animate-spin' : ''}`}><RefreshCw size={10}/></button>
+                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest text-white/30">Total Balance</span>
+                <button onClick={updateRealTimeData} className={`text-slate-500 ${isUpdating ? 'animate-spin' : ''}`}><RefreshCw size={10}/></button>
               </div>
               <h2 className="text-2xl font-black italic tracking-tighter leading-none">₩ {fFullKRW(processedAssets.totalKRW)}</h2>
-              <p className="text-slate-500 font-bold text-[9px] mt-1 tracking-tight">$ {fUSD(processedAssets.totalUSD)} <span className="text-slate-700">| ₩{exchangeRate.toFixed(1)}</span></p>
+              <p className="text-slate-400 font-bold text-[9px] mt-1 tracking-tight">$ {fUSD(processedAssets.totalUSD)} <span className="text-slate-600">| ₩{exchangeRate.toFixed(1)}</span></p>
             </div>
             <div className="flex flex-col items-end gap-3">
               <button onClick={() => setIsSidebarOpen(true)} className="p-2 bg-white/10 rounded-xl active:scale-95 transition-all"><Menu size={20}/></button>
               <button onClick={() => { const val = prompt("CASH($)", totalCashUSD.toString()); if(val) setTotalCashUSD(Number(val)); }} className="bg-white text-[#0f172a] px-3 py-1.5 rounded-full text-[9px] font-black uppercase shadow-lg active:scale-95 transition-all">CASH 수정</button>
             </div>
           </div>
-
-          {/* 리스트 간격 축소 및 현재가 표시 [cite: 2026-01-11] */}
-          <div className="grid grid-cols-6 text-[8px] font-black text-slate-400 border-b pb-1.5 mb-1 text-center uppercase tracking-tighter"><div>티커</div><div>비중</div><div>자산(k)</div><div>수량</div><div>평단</div><div className="text-right">현재가</div></div>
-          <div className="space-y-0">
+          <div className="grid grid-cols-6 text-[8px] font-black text-slate-400 border-b pb-1.5 mb-1.5 text-center uppercase tracking-tighter"><div>티커</div><div>비중</div><div>자산(k)</div><div>수량</div><div>평단</div><div className="text-right">현재가</div></div>
+          <div className="space-y-0.5">
             {processedAssets.list.map((s, i) => (
-              <div key={i} onClick={() => s.isStock && setSelectedStock(s)} className="grid grid-cols-6 h-8 items-center italic border-b border-slate-50 text-center active:bg-slate-50 transition-colors">
+              <div key={i} onClick={() => s.isStock && setSelectedStock(s)} className="grid grid-cols-6 h-9 items-center italic border-b border-slate-50 text-center active:bg-slate-50 transition-colors">
                 <div className="font-black text-[11px] text-left truncate uppercase" style={{ color: s.color }}>{s.ticker}</div>
                 <div className="font-bold text-slate-400 text-[9px]">{s.ratio.toFixed(1)}%</div>
                 <div className="text-slate-900 text-[10px] font-black">{fKRWk(s.totalKRW)}</div>
                 <div className="text-slate-400 text-[8px] font-bold">{s.isStock ? fUSD(s.quantity) : '-'}</div>
                 <div className="text-slate-400 text-[8px] font-bold">{s.isStock ? fUSD(s.avgPrice) : '-'}</div>
-                <div className={`text-right font-black text-[10px] ${s.isStock ? (s.currentPrice >= s.avgPrice ? 'text-red-500' : 'text-blue-500') : 'text-slate-900'}`}>
-                  {s.isStock ? (s.currentPrice === 0 ? '...' : fUSD(s.currentPrice)) : '-'}
-                </div>
+                <div className={`text-right font-black text-[10px] ${s.isStock ? (s.currentPrice >= s.avgPrice ? 'text-red-500' : 'text-blue-500') : 'text-slate-900'}`}>{s.isStock ? (s.currentPrice === 0 ? '...' : fUSD(s.currentPrice)) : '-'}</div>
               </div>
             ))}
           </div>
+          <div className="h-44 mt-4"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={processedAssets.list} dataKey="ratio" isAnimationActive={false} innerRadius={40} outerRadius={60} paddingAngle={2} label={({ticker, ratio}: any) => `${ticker} ${ratio.toFixed(0)}%`} labelLine={false}>{processedAssets.list.map((s, i) => <Cell key={i} fill={s.color} stroke="none" />)}</Pie></PieChart></ResponsiveContainer></div>
+        </div>
+      )}
 
-          <div className="h-44 mt-4">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={processedAssets.list} dataKey="ratio" isAnimationActive={false} innerRadius={40} outerRadius={60} paddingAngle={2} label={({ticker, ratio}: any) => `${ticker} ${ratio.toFixed(0)}%`} labelLine={false}>
-                  {processedAssets.list.map((s, i) => <Cell key={i} fill={s.color} stroke="none" />)}
-                </Pie>
-              </PieChart>
-            </ResponsiveContainer>
+      {activeTab === 'WATCH' && (
+        <div className="p-4 animate-in fade-in">
+          <div className="flex justify-between items-center mb-4 mt-1"><h1 className="font-black text-xl italic uppercase text-orange-500">Watchlist</h1><button onClick={() => setActiveTab('MAIN')} className="p-1.5 bg-slate-100 rounded-lg"><X size={20}/></button></div>
+          <div className="grid grid-cols-5 text-[9px] font-black text-slate-400 border-b pb-1.5 mb-1.5 text-center uppercase tracking-tighter"><div>색상</div><div>티커</div><div>현재</div><div>1차</div><div>강력</div></div>
+          {watchlist.map((w, i) => (
+            <div key={i} className="grid grid-cols-5 h-11 items-center border-b border-slate-50 italic text-center">
+              <input type="color" value={w.color} onChange={e => updateTickerColor(w.ticker, e.target.value)} className="w-5 h-5 rounded-full mx-auto border-none cursor-pointer" />
+              <div className="font-black text-[11px]" style={{ color: w.color }}>{w.ticker}</div>
+              <div className="font-black text-[9px] tracking-tighter">${fUSD(w.current)}</div>
+              <input type="number" value={w.part} onChange={e => { const n = [...watchlist]; n[i].part = Number(e.target.value); setWatchlist(n); }} className="w-[85%] bg-slate-50 p-1 rounded font-bold text-center text-[9px] text-orange-500 mx-auto" />
+              <input type="number" value={w.full} onChange={e => { const n = [...watchlist]; n[i].full = Number(e.target.value); setWatchlist(n); }} className="w-[85%] bg-slate-50 p-1 rounded font-bold text-center text-[9px] text-red-500 mx-auto" />
+            </div>
+          ))}
+          <button onClick={() => setWatchlist([...watchlist, { ticker: 'NEW', part: 0, full: 0, current: 0, color: '#000' }])} className="w-full py-3 border-2 border-dashed border-slate-100 rounded-[20px] text-slate-200 flex justify-center mt-4"><Plus size={18}/></button>
+        </div>
+      )}
+
+      {activeTab === 'GOAL' && (
+        <div className="p-4 animate-in fade-in">
+          <div className="flex justify-between items-center mb-1 mt-1"><h1 className="font-black text-xl italic uppercase text-blue-600">Goal</h1><button onClick={() => setActiveTab('MAIN')} className="p-1.5 bg-slate-100 rounded-lg"><X size={20}/></button></div>
+          <div className="h-44 mb-4"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={targetPortfolio} dataKey="ratio" isAnimationActive={false} innerRadius={40} outerRadius={60} paddingAngle={2} label={({ticker, ratio}: any) => `${ticker} ${ratio}%`} labelLine={false}>{targetPortfolio.map((t, i) => <Cell key={i} fill={stocks.find(s => s.ticker === t.ticker)?.color || (t.ticker === 'CASH' ? '#0f172a' : '#cbd5e1')} stroke="none" />)}</Pie></PieChart></ResponsiveContainer></div>
+          <div className="grid grid-cols-4 text-[9px] font-black text-slate-400 border-b pb-1.5 mb-1.5 text-center uppercase tracking-tighter"><div>색상</div><div>티커</div><div>목표(%)</div><div>금액($)</div></div>
+          {targetPortfolio.map((t, i) => (
+            <div key={i} className="grid grid-cols-4 h-11 items-center border-b border-slate-50 italic text-center">
+              {t.ticker !== 'CASH' ? <input type="color" value={stocks.find(s => s.ticker === t.ticker)?.color || '#e2e8f0'} onChange={e => updateTickerColor(t.ticker, e.target.value)} className="w-5 h-5 rounded-full mx-auto border-none cursor-pointer" /> : <div></div>}
+              <div className="font-black text-[11px] truncate">{t.ticker}</div>
+              <input type="number" value={t.ratio} onChange={e => { const n = [...targetPortfolio]; n[i].ratio = Number(e.target.value); setTargetPortfolio(n); }} className="w-[85%] bg-slate-50 p-1 rounded-lg font-black text-center text-[10px] mx-auto" />
+              <div className="font-black text-[9px] text-slate-900 tracking-tighter">${fUSD((processedAssets.totalUSD * t.ratio) / 100)}</div>
+            </div>
+          ))}
+          <button onClick={() => setTargetPortfolio([...targetPortfolio, { ticker: 'NEW', ratio: 0 }])} className="w-full py-3 border-2 border-dashed border-slate-100 rounded-[20px] text-slate-200 flex justify-center mt-4"><Plus size={18}/></button>
+        </div>
+      )}
+
+      {activeTab === 'SETTING' && (
+        <div className="p-4 animate-in fade-in pb-32">
+          <div className="flex justify-between items-center mb-5 mt-1"><h1 className="font-black text-xl italic uppercase text-slate-900">Setting</h1><button onClick={() => setActiveTab('MAIN')} className="p-1.5 bg-slate-100 rounded-lg"><X size={20}/></button></div>
+          <div className="grid grid-cols-7 text-[7px] font-black text-slate-400 border-b pb-1.5 mb-1.5 text-center uppercase tracking-tighter"><div>색상</div><div>티커</div><div>수량</div><div>평단</div><div>손절</div><div>익절</div><div></div></div>
+          {stocks.map((s, i) => (
+            <div key={i} className="grid grid-cols-7 gap-1 items-center bg-slate-50 p-2 rounded-xl italic">
+              <input type="color" value={s.color} onChange={e => updateTickerColor(s.ticker, e.target.value)} className="w-4 h-4 rounded mx-auto border-none cursor-pointer" />
+              <input value={s.ticker} onChange={e => { const n = [...stocks]; n[i].ticker = e.target.value.toUpperCase(); setStocks(n); }} className="text-[10px] font-black w-full text-center bg-transparent outline-none uppercase" />
+              <input type="number" value={s.quantity} onChange={e => { const n = [...stocks]; n[i].quantity = Number(e.target.value); setStocks(n); }} className="text-[9px] w-full text-center bg-white p-0.5 rounded font-bold" />
+              <input type="number" value={s.avgPrice} onChange={e => { const n = [...stocks]; n[i].avgPrice = Number(e.target.value); setStocks(n); }} className="text-[9px] w-full text-center bg-white p-0.5 rounded font-bold" />
+              <input type="number" value={s.sl} onChange={e => { const n = [...stocks]; n[i].sl = Number(e.target.value); setStocks(n); }} className="text-[9px] w-full text-center bg-red-50 text-red-600 p-0.5 rounded font-bold" />
+              <input type="number" value={s.tp} onChange={e => { const n = [...stocks]; n[i].tp = Number(e.target.value); setStocks(n); }} className="text-[9px] w-full text-center bg-blue-50 text-blue-700 p-0.5 rounded font-bold" />
+              <button onClick={() => setStocks(stocks.filter((_, idx) => idx !== i))} className="text-slate-300 mx-auto active:text-red-500"><Trash2 size={12}/></button>
+            </div>
+          ))}
+          <button onClick={() => setStocks([...stocks, { ticker: 'NEW', quantity: 0, avgPrice: 0, currentPrice: 0, sl: 0, tp: 0, color: '#000' }])} className="w-full py-3 border-2 border-dashed border-slate-100 rounded-[20px] text-slate-200 flex justify-center mt-4"><Plus size={18}/></button>
+        </div>
+      )}
+
+      {isSidebarOpen && activeTab === 'MAIN' && (
+        <div className="fixed inset-0 z-[60] flex animate-in fade-in duration-300">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={() => setIsSidebarOpen(false)} />
+          <div className="relative w-[80%] bg-white flex flex-col h-full ml-auto shadow-2xl">
+            <div className="p-8 flex justify-between items-center border-b font-black text-xl italic uppercase mt-4 tracking-widest text-slate-900">Menu <button onClick={() => setIsSidebarOpen(false)} className="p-1.5 bg-slate-100 rounded-lg"><X size={28}/></button></div>
+            <div className="p-6 space-y-4">
+              <button onClick={() => {setActiveTab('GOAL'); setIsSidebarOpen(false);}} className="w-full p-6 bg-blue-600 text-white rounded-[32px] font-black text-left flex justify-between items-center shadow-lg text-base uppercase active:scale-95 transition-all">Goal <ChevronRight/></button>
+              <button onClick={() => {setActiveTab('WATCH'); setIsSidebarOpen(false);}} className="w-full p-6 bg-orange-500 text-white rounded-[32px] font-black text-left flex justify-between items-center shadow-lg text-base uppercase active:scale-95 transition-all">Watchlist <ChevronRight/></button>
+              <button onClick={() => {setActiveTab('SETTING'); setIsSidebarOpen(false);}} className="w-full p-6 bg-slate-900 text-white rounded-[32px] font-black text-left flex justify-between items-center shadow-lg text-base uppercase active:scale-95 transition-all">Setting <ChevronRight/></button>
+            </div>
           </div>
         </div>
       )}
-      {/* ... 사이드바 및 팝업 코드는 동일하여 생략 ... */}
+
+      {selectedStock && (
+        <div className="fixed inset-0 z-[100] flex items-end animate-in fade-in">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setSelectedStock(null)} />
+          <div className="relative w-full bg-white rounded-t-[50px] p-10 animate-in slide-in-from-bottom duration-500 shadow-2xl">
+            <h3 className="text-3xl font-black mb-8 italic uppercase tracking-tighter" style={{ color: selectedStock.color }}>{selectedStock.ticker}</h3>
+            <div className="grid grid-cols-2 gap-6 mb-10">
+              <div className="p-6 bg-blue-50 rounded-[35px] border border-blue-100 text-center shadow-inner"><p className="text-[10px] font-black mb-1 uppercase text-blue-400 tracking-widest leading-none">Target (TP)</p><p className="text-2xl font-black text-blue-700 leading-none mt-1">${fUSD(selectedStock.tp)}</p></div>
+              <div className="p-6 bg-red-50 rounded-[35px] border border-red-100 text-center shadow-inner"><p className="text-[10px] font-black mb-1 uppercase text-red-400 tracking-widest leading-none">Loss (SL)</p><p className="text-2xl font-black text-red-700 leading-none mt-1">${fUSD(selectedStock.sl)}</p></div>
+            </div>
+            <button onClick={() => setSelectedStock(null)} className="w-full py-5 bg-slate-900 text-white rounded-[30px] font-black text-lg shadow-xl uppercase active:scale-95 transition-all">Done</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
